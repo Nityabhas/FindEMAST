@@ -1,0 +1,433 @@
+# Searching for Tetranucleotide repeats with motif, CTTT specific
+
+def EMASTCTTT(ffile):
+    import re
+    import glob
+    from difflib import SequenceMatcher
+
+    fout = open(ffile, "w")
+    fout.write("repeat position \t")
+    fout.write("repeat# \t")
+    fout.write("motif comparison \t")
+    fout.write("loci similarity \t")
+    fout.write("%similarity \t")
+    fout.write("loci \t")
+    fout.write("larger sequence \t")
+    fout.write("filename")
+
+    #loci data loaded
+    D20S85 = 'TGTGGAAATTGAGCTGATTCATTTTCTCTTTCTTTCTTTTTTCAGACAGG'
+    D20S82 = 'TGTTCTTAAACTTTTCTTTCTTTCCTTCTTTCTTTCTTTCTCTTCTTTTT'
+    D8S321 = 'TCTTTCTTTTCTTTTCTTTTCTTTTCTCTTTCTCTCTCTCTTGCTCACTC'
+    D9S242 = 'CCTTCCTTCCTTTCTCTCTCTCTCCCTTCTTTCTTTCTTTTTGACAGAGT'
+    D11S488 ='CCTTCCTTCCTTCCTTCCTTCCTTCTTCTTACCTTTCTTTCTTTCTTTCT'
+    UT5320 = 'TCCTTCCTTCCTTCCTTCCTTCCTTCTCTCCTCCCTCCCTCCTTTCCTTC'
+    L17686 = 'TCCTTCCTTCCTTCCTTCCTTCCTTCCTACAAATCACACTCAGATAATAT'
+    hloci = [D20S85,D20S82, D8S321, D9S242, D11S488, UT5320, L17686]
+    locinames = ['D20S85','D20S82', 'D8S321', 'D9S242', 'D11S488', 'UT5320', 'L17686']
+
+    #ACGT
+    PWM_A = [-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-0.34,-0.34,-0.34,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-0.34,-1.95,-0.34,-0.34,-0.34,-1.95,-1.95,-0.34,-1.95,-0.34,-1.95,-1.95,-1.95,-0.34,-1.95,0.25,-1.95,0.25,0.25,-0.34,-0.34,-1.95]
+    PWM_C = [0.25,1.10,0.62,-1.95,0.62,1.10,0.62,-1.95,0.25,0.89,1.10,-1.95,-0.34,0.89,0.62,0.62,0.25,0.89,0.25,0.62,0.25,0.89,0.25,0.25,0.25,0.89,0.25,0.89,-0.34,0.25,0.25,0.62,0.25,0.25,0.62,0.62,0.62,0.25,0.62,0.62,0.25,0.62,-0.34,-0.34,0.62,0.25,0.25,-0.34,-1.95,0.25]
+    PWM_G = [-1.95,-0.34,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,-1.95,0.62,-1.95,-1.95,-1.95,-0.34,-1.95,-0.34,-1.95]
+    PWM_T = [1.10,-0.34,0.89,1.42,0.89,0.25,0.89,1.27,0.89,0.25,0.25,1.42,1.27,0.62,0.89,0.89,1.10,0.62,1.10,0.89,1.10,0.62,1.10,1.10,1.10,0.62,1.10,0.62,1.10,1.10,0.89,0.62,0.89,1.10,0.89,0.62,0.89,0.89,0.89,0.89,1.10,0.62,0.62,0.89,0.89,0.62,0.25,1.10,1.10,1.10]
+    #first open file and create a one line string of the sequence
+    for filename in glob.glob('*.fasta'):
+        fin = open(filename, "U")
+        lines = fin.readlines()
+        seq = lines[1:]
+        seqstring = ""
+
+        for line in seq:
+            line1 = line.replace("\n", "")
+            line2 = line1.upper()
+            seqstring += line2
+    
+        #print "%02s data loaded" %(filename)
+
+
+
+        #search for tetranucleotide repeats, number between 8 and 25
+        repeat = 5
+        count = 0
+        totalrepeatseq = 0
+        for i in range(6,26,1):
+            tetranucleotide = "CTTT"*i
+            repeat += 1
+            repeatstr = '%02d' %(repeat)
+            #print "Tetranucleotide repeat %02d search begun" %(repeat)
+                            
+            for m in re.finditer(tetranucleotide, seqstring):
+                next_tetra = seqstring[m.end():(m.end() +4)]
+                if next_tetra != "CTTT":
+                    totalrepeatseq += 1
+                    flankingfirst = seqstring[(m.start()-25):m.start()]
+                    if re.search('C(C|T)TT(C|T)(C|T)TT(C|T)CT', flankingfirst) or re.search('TTC(C|A)TT', flankingfirst) or re.search('ATGTGGAAATTGAGCTGATTCATTTT', flankingfirst):
+                        flankinglast = seqstring[m.end():(m.end()+25)]
+                        if re.search('(T|C)(T|C)CTTTC(T|C)(T|C)TC', flankinglast) or re.search('CA(G|C)(T|A)CAG', flankinglast) or re.search('CCTACAAATCACACTCAGATAATAT', flankinglast):
+                    
+                        
+                            position = '\n %02d-%02d \t' % (m.start(), m.end())
+                            full_seq = seqstring[m.start()-25:m.end()+25]
+                            large_seq = seqstring[m.start()-100:m.end()+100]
+                            flanking = ""
+                            flanking += flankingfirst + flankinglast
+                            p=[]
+
+                            for loci in hloci:
+                                em = SequenceMatcher(None, flanking, loci)
+                                p.append(em.ratio())
+                            perid = max(p)*100
+                            percent_identity = "%02d" %(perid)
+
+                            for i in range(0, 7, 1):
+                                em = SequenceMatcher(None, flanking, hloci[i])
+                                if em.ratio()*100 == perid:
+                                    simloci = "%02s" %(locinames[i])
+                                else:
+                                    pass
+                          
+                                               
+                       
+                            #calculate PWM
+                            pwmsum = 0
+                            count_arr = 0
+                            for f in flanking:
+                                if f == "A":
+                                    add = PWM_A[count_arr]
+                                    pwmsum += add
+                                elif f == "T":
+                                    add = PWM_T[count_arr]
+                                    pwmsum += add
+                                elif f == "C":
+                                    add = PWM_C[count_arr]
+                                    pwmsum += add
+                                elif f == "G":
+                                    add = PWM_G[count_arr]
+                                    pwmsum += add
+                                else:
+                                    pass
+                                count_arr += 1
+                            pwm_sum = "%02s" %(pwmsum)
+                            
+                            #calculate probability of match
+                            count += 1
+                            fnam = "%02s" %(filename)
+
+                            #motif matches
+                            if re.search('CCTTCCTTCCT', flankingfirst) and re.search('TTCTTTCTTTC', flankinglast): #D11S488, D9S242
+                                prob = "?D11S488 & D9S242"
+
+                                
+                                fout.write(position)
+                                fout.write(repeatstr)
+                                fout.write("\t")
+                                fout.write(prob)
+                                fout.write("\t")
+                                fout.write(simloci)
+                                fout.write("\t")
+                                fout.write(percent_identity)
+                                fout.write("\t")
+                                fout.write(full_seq)
+                                fout.write("\t")
+                                fout.write(large_seq)
+                                fout.write("\t")
+                                fout.write(fnam)
+                                
+                                fout.write("\t")
+                                fout.write(pwm_sum)
+                            
+                            elif re.search('CCTTCCTTCCT', flankingfirst) and re.search('CCTACAAATCACACTCAGATAATAT', flankinglast):  #L17686
+                                prob = "?L17686"
+    
+                                fout.write(position)
+                                fout.write(repeatstr)
+                                fout.write("\t")
+                                fout.write(prob)
+                                fout.write("\t")
+                                fout.write(simloci)
+                                fout.write("\t")
+                                fout.write(percent_identity)
+                                fout.write("\t")
+                                fout.write(full_seq)
+                                fout.write("\t")
+                                fout.write(large_seq)
+                                fout.write("\t")
+                                fout.write(fnam)
+                                
+                                fout.write("\t")
+                                fout.write(pwm_sum)
+                                
+                                
+                            elif re.search('CCTTCCTTCCT', flankingfirst) and re.search('TCCTTTCCTTC', flankinglast): #UT5320
+                                prob = "UT5320"
+    
+                                fout.write(position)
+                                fout.write(repeatstr)
+                                fout.write("\t")
+                                fout.write(prob)
+                                fout.write("\t")
+                                fout.write(simloci)
+                                fout.write("\t")
+                                fout.write(percent_identity)
+                                fout.write("\t")
+                                fout.write(full_seq)
+                                fout.write("\t")
+                                fout.write(large_seq)
+                                fout.write("\t")
+                                fout.write(fnam)
+                                
+                                fout.write("\t")
+                                fout.write(pwm_sum)
+
+                                
+                            elif re.search('CTTTCTTTTCT', flankingfirst) and re.search('CTCTTTCTCTC', flankinglast): #D8S321
+                                prob = "?D8S321"
+                            
+                                fout.write(position)
+                                fout.write(repeatstr)
+                                fout.write("\t")
+                                fout.write(prob)
+                                fout.write("\t")
+                                fout.write(simloci)
+                                fout.write("\t")
+                                fout.write(percent_identity)
+                                fout.write("\t")
+                                fout.write(full_seq)
+                                fout.write("\t")
+                                fout.write(large_seq)
+                                fout.write("\t")
+                                fout.write(fnam)
+                                
+                                fout.write("\t")
+                                fout.write(pwm_sum)
+                                
+                            
+                            elif re.search('CTTTTCTTTCT', flankingfirst) and re.search('TTCTTTCTTTC', flankinglast): #D20S82
+                                prob = "?D20S82"
+    
+                                fout.write(position)
+                                fout.write(repeatstr)
+                                fout.write("\t")
+                                fout.write(prob)
+                                fout.write("\t")
+                                fout.write(simloci)
+                                fout.write("\t")
+                                fout.write(percent_identity)
+                                fout.write("\t")
+                                fout.write(full_seq)
+                                fout.write("\t")
+                                fout.write(large_seq)
+                                fout.write("\t")
+                                fout.write(fnam)
+                                
+                                fout.write("\t")
+                                fout.write(pwm_sum)
+
+                                
+                            elif re.search('TGTGGAAATTGAGCTGATTCATTTT', flankingfirst) and re.search('CTCTTTCTTTC', flankinglast): #D20S85
+                                prob = "?D20S85"
+        
+                                fout.write(position)
+                                fout.write(repeatstr)
+                                fout.write("\t")
+                                fout.write(prob)
+                                fout.write("\t")
+                                fout.write(simloci)
+                                fout.write("\t")
+                                fout.write(percent_identity)
+                                fout.write("\t")
+                                fout.write(full_seq)
+                                fout.write("\t")
+                                fout.write(large_seq)
+                                fout.write("\t")
+                                fout.write(fnam)
+
+                                fout.write("\t")
+                                fout.write(pwm_sum)
+
+    
+                            #Previous matches
+                            elif re.search('CCTTCCTTCCTTTCTCTCTCTCTCC', flankingfirst) and re.search('CTTCTTTCTTTCTTTTTGACAGAGT', flankinglast): #D11S488, D9S242
+                                prob = "TD9S242"
+    
+                                fout.write(position)
+                                fout.write(repeatstr)
+                                fout.write("\t")
+                                fout.write(prob)
+                                fout.write("\t")
+                                fout.write(simloci)
+                                fout.write("\t")
+                                fout.write(percent_identity)
+                                fout.write("\t")
+                                fout.write(full_seq)
+                                fout.write("\t")
+                                fout.write(large_seq)
+                                fout.write("\t")
+                                fout.write(fnam)
+                                
+                                fout.write("\t")
+                                fout.write(pwm_sum)
+                            
+                            elif re.search('CCTTCCTTCCTTCCTTCCTTCCTTC', flankingfirst) and re.search('TTCTTACCTTTCTTTCTTTCTTTCT', flankinglast):  #L17686
+                                prob = "TD11S488"
+    
+                                fout.write(position)
+                                fout.write(repeatstr)
+                                fout.write("\t")
+                                fout.write(prob)
+                                fout.write("\t")
+                                fout.write(simloci)
+                                fout.write("\t")
+                                fout.write(percent_identity)
+                                fout.write("\t")
+                                fout.write(full_seq)
+                                fout.write("\t")
+                                fout.write(large_seq)
+                                fout.write("\t")
+                                fout.write(fnam)
+                                
+                                fout.write("\t")
+                                fout.write(pwm_sum)
+                                
+                            elif re.search('TCCTTCCTTCCTTCCTTCCTTCCTT', flankingfirst) and re.search('CCTACAAATCACACTCAGATAATAT', flankinglast):  #L17686
+                                prob = "TL17686"
+    
+                                fout.write(position)
+                                fout.write(repeatstr)
+                                fout.write("\t")
+                                fout.write(prob)
+                                fout.write("\t")
+                                fout.write(simloci)
+                                fout.write("\t")
+                                fout.write(percent_identity)
+                                fout.write("\t")
+                                fout.write(full_seq)
+                                fout.write("\t")
+                                fout.write(large_seq)
+                                fout.write("\t")
+                                fout.write(fnam)
+                                
+                                fout.write("\t")
+                                fout.write(pwm_sum)
+
+                                
+                            elif re.search('TCCTTCCTTCCTTCCTTCCTTCCTT', flankingfirst) and re.search('CTCTCCTCCCTCCCTCCTTTCCTTC', flankinglast): #UT5320
+                                prob = "TUT5320"
+    
+                                fout.write(position)
+                                fout.write(repeatstr)
+                                fout.write("\t")
+                                fout.write(prob)
+                                fout.write("\t")
+                                fout.write(simloci)
+                                fout.write("\t")
+                                fout.write(percent_identity)
+                                fout.write("\t")
+                                fout.write(full_seq)
+                                fout.write("\t")
+                                fout.write(large_seq)
+                                fout.write("\t")
+                                fout.write(fnam)
+                                
+                                fout.write("\t")
+                                fout.write(pwm_sum)
+
+                                
+                            elif re.search('TCTTTCTTTTCTTTTCTTTTCTTTT', flankingfirst) and re.search('CTCTTTCTCTCTCTCTTGCTCACTC', flankinglast): #D8S321
+                                prob = "TD8S321"
+                            
+                                fout.write(position)
+                                fout.write(repeatstr)
+                                fout.write("\t")
+                                fout.write(prob)
+                                fout.write("\t")
+                                fout.write(simloci)
+                                fout.write("\t")
+                                fout.write(percent_identity)
+                                fout.write("\t")
+                                fout.write(full_seq)
+                                fout.write("\t")
+                                fout.write(large_seq)
+                                fout.write("\t")
+                                fout.write(fnam)
+                                
+                                fout.write("\t")
+                                fout.write(pwm_sum)
+
+                        
+                            elif re.search('TGTTCTTAAACTTTTCTTTCTTTCC', flankingfirst) and re.search('TTCTTTCTTTCTTTCTCTTCTTTTT', flankinglast): #D20S82
+                                prob = "TD20S82"
+    
+                                fout.write(position)
+                                fout.write(repeatstr)
+                                fout.write("\t")
+                                fout.write(prob)
+                                fout.write("\t")
+                                fout.write(simloci)
+                                fout.write("\t")
+                                fout.write(percent_identity)
+                                fout.write("\t")
+                                fout.write(full_seq)
+                                fout.write("\t")
+                                fout.write(large_seq)
+                                fout.write("\t")
+                                fout.write(fnam)
+                                
+                                fout.write("\t")
+                                fout.write(pwm_sum)
+
+                                
+                            elif re.search('TGTGGAAATTGAGCTGATTCATTTT', flankingfirst) and re.search('CTCTTTCTTTCTTTTTTCAGACAGG', flankinglast): #D20S85
+                                prob = "TD20S85"
+        
+                                fout.write(position)
+                                fout.write(repeatstr)
+                                fout.write("\t")
+                                fout.write(prob)
+                                fout.write("\t")
+                                fout.write(simloci)
+                                fout.write("\t")
+                                fout.write(percent_identity)
+                                fout.write("\t")
+                                fout.write(full_seq)
+                                fout.write("\t")
+                                fout.write(large_seq)
+                                fout.write("\t")
+                                fout.write(fnam)
+                                
+                                fout.write("\t")
+                                fout.write(pwm_sum)
+
+                                
+                            else:
+                                
+                                fout.write(position)
+                                fout.write(repeatstr)
+                                fout.write("\t")
+                                fout.write(prob)
+                                fout.write("\t")
+                                fout.write(simloci)
+                                fout.write("\t")
+                                fout.write(percent_identity)
+                                fout.write("\t")
+                                fout.write(full_seq)
+                                fout.write("\t")
+                                fout.write(large_seq)
+                                fout.write("\t")
+                                fout.write(fnam)
+                                
+                                fout.write("\t")
+                                fout.write(pwm_sum)
+
+
+        print "%02d tetranucleotides in total \n %02d match(s) found in %02s" %(totalrepeatseq, count, filename)
+                        
+    fin.close()
+    fout.close()                     
+    return
+    
+
+                    
+
+
